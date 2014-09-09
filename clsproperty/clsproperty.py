@@ -1,50 +1,31 @@
+from __future__ import absolute_import
+import inspect
+import collections
+if __name__ == "__main__":
+    from tryget import TryGetAttr, TryGetItem
+else:
+    from .tryget import TryGetAttr, TryGetItem
+
+__all__ = ['VProperty', 'FProperty']
 
 
-
-
-
-class FProperty(property):
-    """Enhanced class-based property.
+class VProperty(object):
+    """Enchanced Python property, supporting 
     
+    @TODO: Allow the function names for the class to be specified as
+        either 'fget'/'getter', 'fset'/'setter', 'fdel'/'deleter', 'fval'/'validator'
+    @TODO: Allow additional methods to be provided on a decorated class. Essentially
+        anything not causing a conflict. basically I would like the class defined in
+        the decorator to be in the method-resolution order for the new vproperty descriptor.
+        (* complication: need to rename getter/setter/deleter/validator to fget/fset etc)
+    @TODO: Consider having the names on the class be:
+        '_get', '_set', '_del', '_validate' - so that pylint doesn't complain about them.
     
-    class MyClass(object):
-        def __init__(self, foo, bar):
-            self.foo = foo
-            print("I see self.bar == "+str(self.bar))
-            self.bar = bar
-        @invoke()
-        class bar(SimpleProperty):
-            def _get(self):
-                if not hasattr(self, '_bar'):
-                    self._bar = self.default
-                return self._bar
-            def _set(self, value):
-                self._bar = value
-            def _del(self):
-                del self._bar
-            def _val(self, value):
-                if not isinstance(value, str):
-                    raise TypeError("'bar' must be 'str'.")
-                return value
-            # Assign any extra traits you would like
-            default = 'boo-bar-baz'
-    
-    @todo: Advanced - make this invoke() itself, using __new__ magic.
-            
     """
-    
-    
-    
     def __init__(self, *fargs, **fkwargs):
         """Check if used as a decorator for a class, or if used
         conventionally.
         """
-        
-        print(fargs, fkwargs)
-        import pdb
-        pdb.set_trace()
-        print(fargs, fkwargs)
-        
         arguments = self.validate(*fargs, **fkwargs)
             
         (self.fget,
@@ -63,33 +44,15 @@ class FProperty(property):
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
-    def _validate_from_class(self, klass):
-        print(klass.__dict__)
-        import pdb
-        pdb.set_trace()
-        print(klass.__dict__)
-        
-        
-        fget=_tryget(klass, '_get')
-        fset=_tryget(klass, '_set')
-        fdel=_tryget(klass, '_del')
-        fval=_tryget(klass, '_val')
+    def _validate_from_class(self, klass):                
+        fget=_tryget(klass, 'getter')
+        fset=_tryget(klass, 'setter')
+        fdel=_tryget(klass, 'deleter')
+        fval=_tryget(klass, 'validator')
         doc=_tryget(klass, '__doc__')
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
-    def _validate_from_mapping(self, mapping):
-        trykey = lambda *keys: _trykey(mapping, keys, default=None)
-        
-        fget = trykey('fget', '_get', 'getter')
-        fset = trykey('fset', '_set', 'setter')
-        fdel = trykey('fdel', '_del', 'deleter')
-        fval = trykey('fval', '_val', 'validator')
-        doc  = trykey('__doc__')
-        
-        
-        fget = _trykey(mapping, ('fget', '_get', 'getter'), default=None)
-        fset = _trykey(mapping, ('fset','_set', ))
     #----- Descriptors
     def __get__(self, obj, objtype=None):
         if obj is None:
@@ -123,6 +86,105 @@ class FProperty(property):
 
 
 
+#class FProperty(property)
+# -- would like, but it creates problems with read-only
+class FProperty(object):
+    """Enhanced class-based property."""
+    def __init__(self, *fargs, **fkwargs):
+        """
+        """
+        arguments = self.validate(*fargs, **fkwargs)
+            
+        (self.fget,
+         self.fset,
+         self.fdel,
+         self.fval,
+         self.__doc__) = arguments
+         
+
+    #----- Descriptors
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if self.fget is None:
+            raise AttributeError("unreadable attribute")
+        return self.fget(obj)        
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError("can't set attribute")
+        if self.fval is not None: #Validate, if possible
+            value = self.fval(obj, value)
+        self.fset(obj, value)
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError("can't delete attribute")
+        self.fdel(obj)
+    #----- Decorators
+    def getter(self, fget):
+        return type(self)(fget, self.fset, self.fdel, self.fval, self.__doc__)
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.fval, self.__doc__)
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.fval, self.__doc__)
+    def validator(self, fval):
+        return type(self)(self.fget, self.fset, self.fdel, fval, self.__doc__)
+    
+    #------ Input Validation
+    # ... probably unnecssarily complicated
+    def validate(self, *fargs, **fkwargs):
+        """Dispatch. Check if used as a decorator for a class, or if used
+        conventionally, then validate inputs.
+        """
+        (fget, fset, fdel, fval, doc) = self._validate_dispatch(*fargs, **fkwargs)        
+        self._validate_typecheck(fget, fset, fdel, fval, doc)
+        return fget, fset, fdel, fval, doc
+    
+    def _validate_dispatch(self, *fargs, **fkwargs):
+        if len(fargs)==1 and len(fkwargs)==0:
+            if inspect.isclass(fargs[0]):
+                return self._validate_from_class(fargs[0])
+        return self._validate_from_args(*fargs, **fkwargs)
+    
+    def _validate_from_args(self, *args, **kwargs):
+        combined = (args, kwargs)
+        fget = TryGetItem(combined, [0, 'fget', '_get', 'getter'], default=None)
+        fset = TryGetItem(combined, [1, 'fset', '_set', 'setter'], default=None)
+        fdel = TryGetItem(combined, [2, 'fdel', '_del', 'deleter'], default=None)
+        fval = TryGetItem(combined, [3, 'fval', '_val', 'validator'], default=None)
+        doc  = TryGetItem(combined, [4, '__doc__'], default=None)
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        return fget, fset, fdel, fval, doc
+
+    def _validate_from_class(self, klass):
+        fget = TryGetAttr(klass, ['fget', '_get', 'getter'], default=None)
+        fset = TryGetAttr(klass, ['fset', '_set', 'setter'], default=None)
+        fdel = TryGetAttr(klass, ['fdel', '_del', 'deleter'], default=None)
+        fval = TryGetAttr(klass, ['fval', '_val', 'validator'], default=None)
+        doc  = TryGetAttr(klass, ['__doc__'])
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        return fget, fset, fdel, fval, doc
+    
+    def _validate_typecheck(self, fget, fset, fdel, fval, doc):
+        fget = self._validate_typecheck_func(fget, 'fget')
+        fset = self._validate_typecheck_func(fset, 'fset')
+        fdel = self._validate_typecheck_func(fdel, 'fdel')
+        fval = self._validate_typecheck_func(fval, 'fval')
+        if not isinstance(doc, (basestring, type(None))):
+            raise TypeError("'doc' must be basestring or NoneType")
+        
+    def _validate_typecheck_func(self, farg, name):
+        if not isinstance(farg, (collections.Callable, type(None))):
+            raise TypeError("'{0}' must be Callable or NoneType.".format(name))
+        return farg
+            
+
+
+
+
+
+
 #==============================================================================
 #    Local Utility Sections
 #==============================================================================
@@ -130,15 +192,15 @@ def _tryget(klass, attributes, **kwargs):
     """Return the first attribute from among 'attributes' which is found inside
     'klass'. If 'default' provided, then that is returned if none of the 
     attributes is found.
-    
+     
     Note: object.__getattribute__(klass, attr), returns a subtly
     different object than getattr(klass, attr).
     The first will return a function, and the second an unbound method.
     """
-    assert(
-        isinstance(attributes, collections.Sequence) 
-        and not isinstance(attributes, basestring)
-    )
+    if isinstance(attributes, basestring):
+        attributes = [attributes]
+    assert(isinstance(attributes, collections.Sequence))
+         
     for attr in attributes:
         try:
             return object.__getattribute__(klass, attr)
@@ -149,31 +211,16 @@ def _tryget(klass, attributes, **kwargs):
     else:
         raise AttributeError("Could not find any of the attributes: "+str(attrs))
 
-def _trykey(mapping, keys, **kwargs):
-    """Return the first attribute from among 'attributes' which is found inside
-    'klass'. If 'default' provided, then that is returned if none of the 
-    attributes is found.
-    
-    Note: object.__getattribute__(klass, attr), returns a subtly
-    different object than getattr(klass, attr).
-    The first will return a function, and the second an unbound method.
-    """
-    assert(isinstance(mapping, collections.Mapping))
-    assert(isinstance(keys, collections.Iterable) and not isinstance(keys, str))
+# def _defaults(*mappings):
+#     """Handles defaults for sequence of mappings (~dicts).
+#     The first (left-most) mapping is the highest priority."""
+#     return dict(
+#         (k, v)
+#         for mapping in reversed(mappings)
+#         for k, v in mapping.items()
+#     )
         
-    for key in keys:
-        try:
-            return mapping[key]
-        except KeyError:
-            pass
-    if 'default' in kwargs:
-        return kwargs['default']
-    else:
-        raise KeyError("Could not find any of the attributes: "+str(keys))
-
-
-
-
+        
 def invoke_property(klass):
     return klass()
 
