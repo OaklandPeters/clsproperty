@@ -55,11 +55,11 @@ class VProperty(object):
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
     def _validate_from_class(self, klass):
-        fget = TryGetAttr(klass, ('fget', '_get', 'getter'), default=None)
-        fset = TryGetAttr(klass, ('fset', '_set', 'setter'), default=None)
-        fdel = TryGetAttr(klass, ('fdel', '_del', 'deleter'), default=None)
-        fval = TryGetAttr(klass, ('fval', '_val', 'validator'), default=None)
-        doc  = TryGetAttr(klass, '__doc__', default=None)        
+        fget = _trygetpure(klass, ('fget', '_get', 'getter'), default=None)
+        fset = _trygetpure(klass, ('fset', '_set', 'setter'), default=None)
+        fdel = _trygetpure(klass, ('fdel', '_del', 'deleter'), default=None)
+        fval = _trygetpure(klass, ('fval', '_val', 'validator'), default=None)
+        doc  = _trygetpure(klass, '__doc__', default=None)        
         return fget, fset, fdel, fval, doc
     #----- Descriptors
     def __get__(self, obj, objtype=None):
@@ -162,11 +162,11 @@ class FProperty(object):
         return fget, fset, fdel, fval, doc
 
     def _validate_from_class(self, klass):
-        fget = TryGetAttr(klass, ['fget', '_get', 'getter'], default=None)
-        fset = TryGetAttr(klass, ['fset', '_set', 'setter'], default=None)
-        fdel = TryGetAttr(klass, ['fdel', '_del', 'deleter'], default=None)
-        fval = TryGetAttr(klass, ['fval', '_val', 'validator'], default=None)
-        doc  = TryGetAttr(klass, ['__doc__'], default=None)
+        fget = _trygetpure(klass, ['fget', '_get', 'getter'], default=None)
+        fset = _trygetpure(klass, ['fset', '_set', 'setter'], default=None)
+        fdel = _trygetpure(klass, ['fdel', '_del', 'deleter'], default=None)
+        fval = _trygetpure(klass, ['fval', '_val', 'validator'], default=None)
+        doc  = _trygetpure(klass, ['__doc__'], default=None)
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
@@ -196,45 +196,3 @@ class FProperty(object):
 def _trygetpure(associations, indexes, default=NotPassed):
     getter = lambda assoc, index: object.__getattribute__(assoc, index)
     return _trygetter(getter, associations, indexes, default=default)
-
-def _tryget(klass, attributes, **kwargs):
-    """Return the first attribute from among 'attributes' which is found inside
-    'klass'. If 'default' provided, then that is returned if none of the 
-    attributes is found.
-     
-    Note: object.__getattribute__(klass, attr), returns a subtly
-    different object than getattr(klass, attr).
-    The first will return a function, and the second an unbound method.
-    """
-    if isinstance(attributes, basestring):
-        attributes = [attributes]
-    assert(isinstance(attributes, collections.Sequence))
-         
-    for attr in attributes:
-        try:
-            return object.__getattribute__(klass, attr)
-        except AttributeError:
-            pass
-    if 'default' in kwargs:
-        return kwargs['default']
-    else:
-        raise AttributeError("Could not find any of the attributes: "+str(attrs))
-
-# def _defaults(*mappings):
-#     """Handles defaults for sequence of mappings (~dicts).
-#     The first (left-most) mapping is the highest priority."""
-#     return dict(
-#         (k, v)
-#         for mapping in reversed(mappings)
-#         for k, v in mapping.items()
-#     )
-        
-        
-def invoke_property(klass):
-    return klass()
-
-def call(*args, **kwargs):
-    """Decorator. Call function using provided arguments."""
-    def outer(func):
-        return func(*args, **kwargs)
-    return outer
