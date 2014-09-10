@@ -30,10 +30,7 @@ class TryGetInterface(object):
     def __call__(cls, associations, indexes, **kwargs):
         (associations, indexes, kwargs
             ) = cls.validate(associations, indexes, **kwargs)
-        
-        
-            
-        
+
         # main - try combinations of associations and indexes
         for index in indexes:
             for assoc in associations:                
@@ -57,10 +54,6 @@ class TryGetInterface(object):
         associations = _ensure_tuple(associations)
         indexes = _ensure_tuple(indexes)
         return associations, indexes, kwargs
-#     @classmethod
-#     def get_retriever(cls, assoc):
-#         print(cls)
-#         return getattr(assoc, cls.retriever_name)
     
     #------------ Abstract functions: required for interface
     retriever_name = abc.abstractproperty(lambda string: string) #string
@@ -73,7 +66,8 @@ class TryGetAttr(TryGetInterface):
     failure_exception = AttributeError
     @classmethod
     def get_retriever(cls, assoc):
-        return lambda index: assoc.__getattribute__(assoc, index)
+        #return lambda index: assoc.__getattribute__(assoc, index)
+        return lambda index: getattr(assoc, index)
 
 class TryGetItem(TryGetInterface):
     retriever_name = '__getitem__'
@@ -82,10 +76,9 @@ class TryGetItem(TryGetInterface):
     @classmethod
     def get_retriever(cls, assoc):
         return assoc.__getitem__
-#     @classmethod
-#     def retriever(cls, assoc, index):
-#         return assoc[index]
-    
+
+
+
 
 
 #==============================================================================
@@ -109,3 +102,69 @@ def _ensure_tuple(obj):
     #Other Iterables, Strings, and non-Iterables - wrap in iterable first
     else:
         return tuple([obj])
+
+
+#==============================================================================
+#        Much simpler versions
+#==============================================================================
+class NotPassed(object):    pass    #alternative to None
+
+class GetterError(LookupError): pass #
+
+def _trygetter(getter, associations, indexes, default=NotPassed):
+    #validate
+    associations = _ensure_tuple(associations)
+    indexes = _ensure_tuple(indexes)
+    # main - try combinations of associations and indexes
+    for assoc in associations:
+        for index in indexes:
+            try:
+                return getter(assoc, index)
+            except Exception: #This is very risky
+                pass
+    # No index was found - try default
+    if default is NotPassed:
+        raise GetterError("Could not find any of the indexes: "+str(indexes))
+    else:
+        return default
+
+def _trygetpure(associations, indexes, default=NotPassed):
+    getter = lambda assoc, index: assoc.__getattribute__(assoc, index)
+    return _tryget(getter, associations, indexes, default)
+
+
+def _trygetattr(associations, indexes, default=NotPassed):
+    #validate
+    associations = _ensure_tuple(associations)
+    indexes = _ensure_tuple(indexes)
+    # main - try combinations of associations and indexes
+    for assoc in associations:
+        retriever = lambda index: getattr(assoc, index)
+        for index in indexes:
+            try:
+                return retriever(index)
+            except AttributeError:
+                pass
+    # No index was found - try default
+    if default is NotPassed:
+        raise AttributeError("Could not find any of the attributes: "+str(indexes))
+    else:
+        return default
+
+def _trygetitem(associations, indexes, default=NotPassed):
+    #validate
+    associations = _ensure_tuple(associations)
+    indexes = _ensure_tuple(indexes)
+    # main - try combinations of associations and indexes
+    for assoc in associations:
+        retriever = assoc.__getitem__
+        for index in indexes:
+            try:
+                return retriever(index)
+            except (LookupError, TypeError):
+                pass
+    # No index was found - try default
+    if default is NotPassed:
+        raise LookupError("Could not find any of the indexes: "+str(indexes))
+    else:
+        return default

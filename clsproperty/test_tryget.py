@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 import unittest
 
-from tryget import TryGetAttr, TryGetItem
+from tryget import TryGetAttr, TryGetItem, _trygetattr, _trygetitem
 
 
 class TestTryGet(unittest.TestCase):
 
-    def test_trygetattr(self):
+    def test_TryGetAttr(self):
         class Klass1(object):
             def foo(self):  pass
             def bar(self):  pass
@@ -17,6 +17,7 @@ class TestTryGet(unittest.TestCase):
         self.assertEqual(
             TryGetAttr([Klass1, Klass2], 'bar'),
             Klass1.bar
+            #Klass1.__dict__['bar']
         )
         self.assertEqual(
             TryGetAttr([Klass1, Klass2], 'foo'),
@@ -27,11 +28,11 @@ class TestTryGet(unittest.TestCase):
             Klass2.baz
         )
         self.assertRaises(
-            LookupError,
+            AttributeError,
             lambda: TryGetAttr([Klass1, Klass2], 'bazinga')
         )
         
-    def test_trygetitem(self):
+    def test_TryGetItem(self):
         mappings = ({'a':0,'b':1}, {'b':2,'c':3})
         self.assertEqual(
             TryGetItem(mappings, ('_a','a')),
@@ -76,6 +77,83 @@ class TestTryGet(unittest.TestCase):
     def test_input_type_errors(self):
         pass
 
+
+
+
+
+
+
+class Test_tryget(unittest.TestCase):
+
+    def test__trygetattr(self):
+        class Klass1(object):
+            def foo(self):  pass
+            def bar(self):  pass
+        class Klass2(object):
+            def bar(self):  pass
+            def baz(self):  pass
+
+        self.assertEqual(
+            _trygetattr([Klass1, Klass2], 'bar'),
+            Klass1.bar
+        )
+        self.assertEqual(
+            _trygetattr([Klass1, Klass2], 'foo'),
+            Klass1.foo
+        )
+        self.assertEqual(
+            _trygetattr([Klass1, Klass2], 'baz'),
+            Klass2.baz
+        )
+        self.assertRaises(
+            AttributeError,
+            lambda: _trygetattr([Klass1, Klass2], 'bazinga')
+        )
+        
+    def test_trygetitem(self):
+        mappings = ({'a':0,'b':1}, {'b':2,'c':3})
+        self.assertEqual(
+            _trygetitem(mappings, ('_a','a')),
+            0
+        )
+        self.assertEqual(
+            _trygetitem(mappings, ('_a','a','b')),
+            0
+        )
+        self.assertEqual(
+            _trygetitem(mappings, ('_a','b')),
+            1
+        )
+        self.assertEqual(
+            _trygetitem(mappings, 'b'),
+            1
+        )
+        self.assertRaises(LookupError,
+            lambda: _trygetitem(({'a':0,'b':1},{'b':2,'c':3}), ('__a'))
+        )
+
+        mixed = ({'a':0,'b':1},{'b':2,'c':3, 2:4}, (10,11,12,13))
+        self.assertEqual(
+            _trygetitem(mixed, ('_a', 1, 'a')),
+            0
+        )
+        self.assertEqual(
+            _trygetitem(mixed, ('_a', 6, 'a')),
+            0
+        )
+        self.assertEqual(
+            _trygetitem(mixed, 2),
+            4
+        )
+        self.assertRaises(LookupError,
+            lambda: _trygetitem(mixed, ('_a', 6))
+        )
+        self.assertRaises(LookupError,
+            lambda: _trygetitem(mixed, '2')
+        )
+
+    def test_input_type_errors(self):
+        pass
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,11 +2,14 @@ from __future__ import absolute_import
 import inspect
 import collections
 if __name__ == "__main__":
-    from tryget import TryGetAttr, TryGetItem
+    from tryget import _trygetter, NotPassed
 else:
-    from .tryget import TryGetAttr, TryGetItem
+    from .tryget import _trygetter, NotPassed
 
 __all__ = ['VProperty', 'FProperty']
+
+
+
 
 
 class VProperty(object):
@@ -35,6 +38,13 @@ class VProperty(object):
          self.__doc__) = arguments
          
     def validate(self, *fargs, **fkwargs):
+        fget, fset, fdel, fval, doc = self._validate_dispatch(*fargs, **fkwargs)
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        return fget, fset, fdel, fval, doc
+
+        
+    def _validate_dispatch(self, *fargs, **fkwargs):
         if len(fargs)==1 and len(fkwargs)==0:
             if inspect.isclass(fargs[0]):
                 return self._validate_from_class(fargs[0])
@@ -44,14 +54,12 @@ class VProperty(object):
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
-    def _validate_from_class(self, klass):                
-        fget=_tryget(klass, 'getter')
-        fset=_tryget(klass, 'setter')
-        fdel=_tryget(klass, 'deleter')
-        fval=_tryget(klass, 'validator')
-        doc=_tryget(klass, '__doc__')
-        if doc is None and fget is not None:
-            doc = fget.__doc__
+    def _validate_from_class(self, klass):
+        fget = TryGetAttr(klass, ('fget', '_get', 'getter'), default=None)
+        fset = TryGetAttr(klass, ('fset', '_set', 'setter'), default=None)
+        fdel = TryGetAttr(klass, ('fdel', '_del', 'deleter'), default=None)
+        fval = TryGetAttr(klass, ('fval', '_val', 'validator'), default=None)
+        doc  = TryGetAttr(klass, '__doc__', default=None)        
         return fget, fset, fdel, fval, doc
     #----- Descriptors
     def __get__(self, obj, objtype=None):
@@ -135,23 +143,20 @@ class FProperty(object):
         """Dispatch. Check if used as a decorator for a class, or if used
         conventionally, then validate inputs.
         """
-        (fget, fset, fdel, fval, doc) = self._validate_dispatch(*fargs, **fkwargs)        
+        fget, fset, fdel, fval, doc = self._validate_dispatch(*fargs, **fkwargs)
+        if doc is None and fget is not None:
+            doc = fget.__doc__
         self._validate_typecheck(fget, fset, fdel, fval, doc)
         return fget, fset, fdel, fval, doc
-    
+        
     def _validate_dispatch(self, *fargs, **fkwargs):
         if len(fargs)==1 and len(fkwargs)==0:
             if inspect.isclass(fargs[0]):
                 return self._validate_from_class(fargs[0])
         return self._validate_from_args(*fargs, **fkwargs)
     
-    def _validate_from_args(self, *args, **kwargs):
-        combined = (args, kwargs)
-        fget = TryGetItem(combined, [0, 'fget', '_get', 'getter'], default=None)
-        fset = TryGetItem(combined, [1, 'fset', '_set', 'setter'], default=None)
-        fdel = TryGetItem(combined, [2, 'fdel', '_del', 'deleter'], default=None)
-        fval = TryGetItem(combined, [3, 'fval', '_val', 'validator'], default=None)
-        doc  = TryGetItem(combined, [4, '__doc__'], default=None)
+    def _validate_from_args(self, fget=None, fset=None, fdel=None, fval=None, doc=None):
+        """This is basically a validation function. Consider renaming?"""
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
@@ -161,7 +166,7 @@ class FProperty(object):
         fset = TryGetAttr(klass, ['fset', '_set', 'setter'], default=None)
         fdel = TryGetAttr(klass, ['fdel', '_del', 'deleter'], default=None)
         fval = TryGetAttr(klass, ['fval', '_val', 'validator'], default=None)
-        doc  = TryGetAttr(klass, ['__doc__'])
+        doc  = TryGetAttr(klass, ['__doc__'], default=None)
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
@@ -188,6 +193,10 @@ class FProperty(object):
 #==============================================================================
 #    Local Utility Sections
 #==============================================================================
+def _trygetpure(associations, indexes, default=NotPassed):
+    getter = lambda assoc, index: object.__getattribute__(assoc, index)
+    return _trygetter(getter, associations, indexes, default=default)
+
 def _tryget(klass, attributes, **kwargs):
     """Return the first attribute from among 'attributes' which is found inside
     'klass'. If 'default' provided, then that is returned if none of the 
