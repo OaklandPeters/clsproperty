@@ -34,6 +34,13 @@ class TryGetError(LookupError): pass #
 
 
 def _trygetter(getter, associations, indexes, default=NotPassed, retry_exceptions=StandardError):
+    """
+    @Note: If an abstract-operator is made for this, abstracts should be:
+            getter
+            retry_exceptions
+        Mixins (~default methods):
+            not_found_exception = TryGetError
+    """
     #validate
     associations = _ensure_tuple(associations)
     indexes = _ensure_tuple(indexes)
