@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 import inspect
 import collections
-if __name__ == "__main__":
-    from tryget import _trygetter, NotPassed
-else:
-    from .tryget import _trygetter, NotPassed
+# if __name__ == "__main__":
+#     from tryget import _trygetter, NotPassed
+# else:
+#     from .tryget import _trygetter, NotPassed
+from .tryget import _trygetter, NotPassed
 
 __all__ = ['VProperty', 'FProperty']
 
