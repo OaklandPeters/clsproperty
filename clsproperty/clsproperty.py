@@ -7,7 +7,7 @@ import collections
 #     from .tryget import _trygetter, NotPassed
 from .tryget import _trygetter, NotPassed
 
-__all__ = ['VProperty', 'FProperty']
+__all__ = ['VProperty', 'FProperty', 'SProperty']
 
 
 
@@ -56,11 +56,17 @@ class VProperty(object):
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
     def _validate_from_class(self, klass):
-        fget = _trygetpure(klass, ('fget', '_get', 'getter'), default=None)
-        fset = _trygetpure(klass, ('fset', '_set', 'setter'), default=None)
-        fdel = _trygetpure(klass, ('fdel', '_del', 'deleter'), default=None)
-        fval = _trygetpure(klass, ('fval', '_val', 'validator'), default=None)
-        doc  = _trygetpure(klass, '__doc__', default=None)        
+#         fget = _trygetpure(klass, ('fget', '_get', 'getter'), default=None)
+#         fset = _trygetpure(klass, ('fset', '_set', 'setter'), default=None)
+#         fdel = _trygetpure(klass, ('fdel', '_del', 'deleter'), default=None)
+#         fval = _trygetpure(klass, ('fval', '_val', 'validator'), default=None)
+#         doc  = _trygetpure(klass, '__doc__', default=None)
+        kdict = vars(klass)
+        fget = _get(kdict, 'fget', '_get', 'getter', default=None)
+        fset = _get(kdict, 'fset', '_set', 'setter', default=None)
+        fdel = _get(kdict, 'fdel', '_del', 'deleter', default=None)
+        fval = _get(kdict, 'fval', '_val', 'validator', default=None)
+        doc  = _get(kdict, '__doc__', default=None)
         return fget, fset, fdel, fval, doc
     #----- Descriptors
     def __get__(self, obj, objtype=None):
@@ -163,11 +169,19 @@ class FProperty(object):
         return fget, fset, fdel, fval, doc
 
     def _validate_from_class(self, klass):
-        fget = _trygetpure(klass, ['fget', '_get', 'getter'], default=None)
-        fset = _trygetpure(klass, ['fset', '_set', 'setter'], default=None)
-        fdel = _trygetpure(klass, ['fdel', '_del', 'deleter'], default=None)
-        fval = _trygetpure(klass, ['fval', '_val', 'validator'], default=None)
-        doc  = _trygetpure(klass, ['__doc__'], default=None)
+        
+#         fget = _trygetpure(klass, ['fget', '_get', 'getter'], default=None)
+#         fset = _trygetpure(klass, ['fset', '_set', 'setter'], default=None)
+#         fdel = _trygetpure(klass, ['fdel', '_del', 'deleter'], default=None)
+#         fval = _trygetpure(klass, ['fval', '_val', 'validator'], default=None)
+#         doc  = _trygetpure(klass, ['__doc__'], default=None)
+        kdict = vars(klass)
+        fget = _get(kdict, 'fget', '_get', 'getter', default=None)
+        fset = _get(kdict, 'fset', '_set', 'setter', default=None)
+        fdel = _get(kdict, 'fdel', '_del', 'deleter', default=None)
+        fval = _get(kdict, 'fval', '_val', 'validator', default=None)
+        doc  = _get(kdict, '__doc__', default=None)
+
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
@@ -186,10 +200,53 @@ class FProperty(object):
         return farg
             
 
+class SProperty(property):
+    """Very simple version of the class-based property object
+    """
+    def __new__(cls, *args, **kwargs):
+        return cls.__call__(*args, **kwargs)
+    @classmethod
+    def __call__(cls, *args, **kwargs):
+        return cls._dispatch(*args, **kwargs)
+    @classmethod
+    def _dispatch(cls, *fargs, **fkwargs):
+        if len(fargs)==1 and len(fkwargs)==0:
+            if inspect.isclass(fargs[0]):
+                return cls.from_class(fargs[0])
+        return property(*fargs, **fkwargs)
+    @classmethod
+    def from_class(cls, klass):
+        return property(*cls._validate_class(klass))
+    @classmethod
+    def _validate_class(cls, klass):     
+        kdict = vars(klass)        
+        fget = cls._get(kdict, '_get', 'getter', 'fget', default=None)
+        fset = cls._get(kdict, '_set', 'setter', 'fset', default=None)
+        fdel = cls._get(kdict, '_del', 'deleter', 'fdel', default=None)
+        doc = cls._get(kdict, 'doc', default=None)
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        return fget, fset, fdel, doc
+    def _get(mapping, *keys, **kwargs):
+        default = kwargs.get('default', NotPassed)
+        for key in keys:
+            if key in mapping:
+                return mapping[key]
+        if 'default' in kwargs:
+            return kwargs['default']
+        else:
+            raise KeyError('Could not find keys: '+', '.join(keys))
+    
 
-
-
-
+def _get(mapping, *keys, **kwargs):
+    default = kwargs.get('default', NotPassed)
+    for key in keys:
+        if key in mapping:
+            return mapping[key]
+    if 'default' in kwargs:
+        return kwargs['default']
+    else:
+        raise KeyError('Could not find keys: '+', '.join(keys))
 
 #==============================================================================
 #    Local Utility Sections

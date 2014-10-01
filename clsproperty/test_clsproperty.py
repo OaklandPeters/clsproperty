@@ -156,6 +156,59 @@ class VPropertyTests(unittest.TestCase):
         self.extended_property_tests(MyClass)
 
 
+class SPropertyTests(unittest.TestCase):
+    def setUp(self):
+        self.init_val = 'bar'
+        self.set_val = 'foo'
+         
+    def basic_property_tests(self, Klass):
+        myobj = Klass()
+        
+        #Setter
+        myobj.data = self.set_val
+        self.assertEquals(myobj._data, self.set_val)
+        #Getter
+        self.assertEquals(myobj.data, self.set_val)
+        #Deleter
+        del myobj.data
+        self.assertRaises(AttributeError, lambda: myobj.data)
+        self.assert_(not hasattr(myobj, 'data'))
+        self.assert_(not hasattr(myobj, '_data'))
+ 
+
+        
+    def test_class_decorator(self):
+        class MyClass(object):
+            def __init__(self):
+                pass
+            @SProperty
+            class data(object):
+                """This is the property 'data' for 'MyClass'."""
+                def getter(self):
+                    return self._data
+                def setter(self, value):
+                    self._data = value
+                def deleter(self):
+                    del self._data
+
+        self.basic_property_tests(MyClass)
+
+    def test_property(self):
+        class MyKlass(object):
+            def __init__(self):
+                pass
+            @SProperty
+            def data(self):
+                return self._data
+            @data.setter
+            def data(self, value):
+                self._data = value
+            @data.deleter
+            def data(self):
+                del self._data
+ 
+        self.basic_property_tests(MyKlass)
+
 
 if __name__ == "__main__":
     unittest.main()
