@@ -3,13 +3,12 @@ clsproperty
 
 Overview
 --------
-A simple tool which makes class properties a little more convenient and object-oriented than classical Python `property`.
+A simple tool which makes class properties a little more convenient and object-oriented than classical Python `property`. This is provided by a few nested-class decorators which mix seemlessly with standard Python class behavior.
 
-Example
-------------
-Properties with clsproperty are constructed as a decorated nested class. The simplest decorator is `SProperty` (for 'simple property'), which defers almost all of it's operation to the builtin `property`. For example::
+The simplest decorator is `SProperty` (for 'simple property'), which defers almost all of it's operation to the builtin `property`. For example::
 
     from clsproperty import SProperty
+    
     class MyClass(object):
         def __init__(self, bar=None):
             if not bar is None:
@@ -32,6 +31,7 @@ Properties with clsproperty are constructed as a decorated nested class. The sim
 A slightly more advanced option is `VProperty` (for 'validating property'), which supplements standard property getter/setter/deleter with a `validator`, via the `fval` function. This function is ran on any assignment before passing it to the `fset` function - and is generally expected to raise an Exception for invalid inputs. For example::
 
     from clsproperty import SProperty, VProperty
+    
     class MyClass(object):
         def __init__(self, bar=None):
             if not bar is None:
