@@ -1,48 +1,74 @@
-PACKAGE-NAME
+clsproperty
 ============
 
-
-Synopsis
+Overview
 --------
-At the top of the file there should be a short introduction and/ or overview that explains **what** the project is. This description should match descriptions added for package managers (Gemspec, package.json, etc.)
+A simple tool which makes class properties a little more convenient and object-oriented than classical Python `property`.
 
-Code Example
+Example
 ------------
-Show what the library does as concisely as possible, developers should be able to figure out **how** your project solves their problem by looking at the code example. Make sure the API you are showing off is obvious, and that your code is short and concise.
+Properties with clsproperty are constructed as a decorated nested class. The simplest decorator is `SProperty` (for 'simple property'), which defers almost all of it's operation to the builtin `property`. For example::
 
-.. code:: python
+    from clsproperty import SProperty
+    class MyClass(object):
+        def __init__(self, bar=None):
+            if not bar is None:
+                self.bar = bar
+        @SProperty
+        class bar(object):
+            """Documentation is attached to the class."""
+            def _get(self):                    
+                if not hasattr(self, '_bar'):
+                    self._bar = 'boo-bar-baz'
+                return self._bar
+            def _set(self, value):
+                self._bar = value
+    
+    obj = MyClass()
+    assert obj.bar == 'boo-bar-baz'  #default value from _get
+    obj.bar = 'foo'  #setter
+    assert obj.bar == 'foo'
 
-	import package
-	output = package.function("arguments")
-	print(output)
+A slightly more advanced option is `VProperty` (for 'validating property'), which supplements standard property getter/setter/deleter with a `validator`, via the `fval` function. This function is ran on any assignment before passing it to the `fset` function - and is generally expected to raise an Exception for invalid inputs. For example::
 
-Motivation
------------
-A short description of the motivation behind the creation and maintenance of the project. This should explain **why** the project exists.
+    from clsproperty import SProperty, VProperty
+    class MyClass(object):
+        def __init__(self, bar=None):
+            if not bar is None:
+                self.bar = bar
+        @VProperty
+        class bar(object):
+            """Documentation is attached to the class."""
+            def _get(self):                    
+                if not hasattr(self, '_bar'):
+                    self._bar = 'boo-bar-baz'
+                return self._bar
+            def _set(self, value):
+                self._bar = value
+            def _del(self):
+                del self._bar
+            def _val(self, value):
+                if not isinstance(value, basestring):
+                    raise TypeError(str.format(
+                        "'bar' must be a basestring, not {0}",
+                        type(value).__name__
+                    ))
+                return value
+    
+    try:
+        obj = MyClass(['foo','bar'])
+    except TypeError as exc:
+        assert(repr(exc)=="TypeError(\"'bar' must be a basestring, not list\",)")
+    
+    try:
+        obj = MyClass('foo')
+        obj.bar = 123
+    except TypeError as exc:
+        assert(repr(exc)=="TypeError(\"'bar' must be a basestring, not int\",)")
 
-Installation
-------------
-Provide code examples and explanations of how to get the project.
-
-API Reference
--------------
-Depending on the size of the project, if it is small and simple enough the reference docs can be added to the README. For medium size to larger projects it is important to at least provide a link to where the API reference docs live.
-
-Tests
------------
-Describe and show how to run the tests with code examples.
-
-Contributors
-------------
-Let people know how they can dive into the project, include important links to things like issue trackers, irc, twitter accounts if applicable.
 
 License
 -----------
-A short snippet describing the license (MIT, Apache, etc.)
+The MIT License (MIT)
 
-
-Actual Attribution
---------------------
-This template was based on a `README.md <https://gist.github.com/jxson/1784669/>`_ by `Jason Campbell <https://gist.github.com/jxson/>`_ on Github.
-
-For more information on ReStructuredText (RST) formatting, see the `QuickRef <http://docutils.sourceforge.net/docs/user/rst/quickref.html/>`_ and the useful online RST editor/linter at http://rst.ninjs.org/.
+Copyright (C) 2014, Oakland John Peters.
