@@ -1,3 +1,9 @@
+"""
+
+@todo: More advanced object: copy the namespace of the klass onto the property object's self
+
+"""
+
 from __future__ import absolute_import
 import inspect
 import collections
@@ -5,7 +11,7 @@ import collections
 #     from tryget import _trygetter, NotPassed
 # else:
 #     from .tryget import _trygetter, NotPassed
-from .tryget import _trygetter, NotPassed
+#from .tryget import _trygetter, NotPassed
 
 __all__ = ['VProperty', 'FProperty', 'SProperty']
 
@@ -220,26 +226,30 @@ class SProperty(property):
     @classmethod
     def _validate_class(cls, klass):     
         kdict = vars(klass)        
-        fget = cls._get(kdict, '_get', 'getter', 'fget', default=None)
-        fset = cls._get(kdict, '_set', 'setter', 'fset', default=None)
-        fdel = cls._get(kdict, '_del', 'deleter', 'fdel', default=None)
-        doc = cls._get(kdict, 'doc', default=None)
+        fget = _get(kdict, '_get', 'getter', 'fget', default=None)
+        fset = _get(kdict, '_set', 'setter', 'fset', default=None)
+        fdel = _get(kdict, '_del', 'deleter', 'fdel', default=None)
+        doc = _get(kdict, 'doc', default=None)
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, doc
-    def _get(mapping, *keys, **kwargs):
-        default = kwargs.get('default', NotPassed)
-        for key in keys:
-            if key in mapping:
-                return mapping[key]
-        if 'default' in kwargs:
-            return kwargs['default']
-        else:
-            raise KeyError('Could not find keys: '+', '.join(keys))
+#     def _get(mapping, *keys, **kwargs):
+#         default = kwargs.get('default', NotPassed)
+#         for key in keys:
+#             if key in mapping:
+#                 return mapping[key]
+#         if 'default' in kwargs:
+#             return kwargs['default']
+#         else:
+#             raise KeyError('Could not find keys: '+', '.join(keys))
     
 
+
+
+#==============================================================================
+#    Local Utility Sections
+#==============================================================================
 def _get(mapping, *keys, **kwargs):
-    default = kwargs.get('default', NotPassed)
     for key in keys:
         if key in mapping:
             return mapping[key]
@@ -247,10 +257,6 @@ def _get(mapping, *keys, **kwargs):
         return kwargs['default']
     else:
         raise KeyError('Could not find keys: '+', '.join(keys))
-
-#==============================================================================
-#    Local Utility Sections
-#==============================================================================
-def _trygetpure(associations, indexes, default=NotPassed):
-    getter = lambda assoc, index: object.__getattribute__(assoc, index)
-    return _trygetter(getter, associations, indexes, default=default)
+# def _trygetpure(associations, indexes, default=NotPassed):
+#     getter = lambda assoc, index: object.__getattribute__(assoc, index)
+#     return _trygetter(getter, associations, indexes, default=default)
