@@ -1,5 +1,5 @@
 """
-
+@todo: Is there any difference between VProperty and FProperty?
 @todo: More advanced object: copy the namespace of the klass onto the property object's self
 
 """
@@ -33,40 +33,32 @@ class VProperty(object):
     
     """
     def __init__(self, *fargs, **fkwargs):
-        """Check if used as a decorator for a class, or if used
-        conventionally.
-        """
-        arguments = self.validate(*fargs, **fkwargs)
-            
+        """Check if used as a decorator for a class, or if used conventionally."""          
         (self.fget,
          self.fset,
          self.fdel,
          self.fval,
-         self.__doc__) = arguments
-         
+         self.__doc__) = self.validate(*fargs, **fkwargs)
+
     def validate(self, *fargs, **fkwargs):
         fget, fset, fdel, fval, doc = self._validate_dispatch(*fargs, **fkwargs)
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
 
-        
     def _validate_dispatch(self, *fargs, **fkwargs):
         if len(fargs)==1 and len(fkwargs)==0:
             if inspect.isclass(fargs[0]):
                 return self._validate_from_class(fargs[0])
         return self._validate_from_args(*fargs, **fkwargs)
+
     def _validate_from_args(self, fget=None, fset=None, fdel=None, fval=None, doc=None):
         """This is basically a validation function. Consider renaming?"""
         if doc is None and fget is not None:
             doc = fget.__doc__
         return fget, fset, fdel, fval, doc
+
     def _validate_from_class(self, klass):
-#         fget = _trygetpure(klass, ('fget', '_get', 'getter'), default=None)
-#         fset = _trygetpure(klass, ('fset', '_set', 'setter'), default=None)
-#         fdel = _trygetpure(klass, ('fdel', '_del', 'deleter'), default=None)
-#         fval = _trygetpure(klass, ('fval', '_val', 'validator'), default=None)
-#         doc  = _trygetpure(klass, '__doc__', default=None)
         kdict = vars(klass)
         fget = _get(kdict, 'fget', '_get', 'getter', default=None)
         fset = _get(kdict, 'fset', '_set', 'setter', default=None)
@@ -74,6 +66,7 @@ class VProperty(object):
         fval = _get(kdict, 'fval', '_val', 'validator', default=None)
         doc  = _get(kdict, '__doc__', default=None)
         return fget, fset, fdel, fval, doc
+
     #----- Descriptors
     def __get__(self, obj, objtype=None):
         if obj is None:
@@ -87,14 +80,11 @@ class VProperty(object):
         if self.fval is not None: #Validate, if possible
             value = self.fval(obj, value)
         self.fset(obj, value)
-#         if self.fval is None:
-#             self.fset(obj, value)
-#         else:
-#             self.fset(obj, self.fval(obj, value))
     def __delete__(self, obj):
         if self.fdel is None:
             raise AttributeError("can't delete attribute")
         self.fdel(obj)
+
     #----- Decorators
     def getter(self, fget):
         return type(self)(fget, self.fset, self.fdel, self.fval, self.__doc__)
@@ -106,21 +96,17 @@ class VProperty(object):
         return type(self)(self.fget, self.fset, self.fdel, fval, self.__doc__)
 
 
-
-#class FProperty(property)
-# -- would like, but it creates problems with read-only
 class FProperty(object):
-    """Enhanced class-based property."""
+    """Enhanced class-based property.
+    @todo: Determine if this offers anything over VProperty
+    """
     def __init__(self, *fargs, **fkwargs):
-        """
-        """
-        arguments = self.validate(*fargs, **fkwargs)
-            
+        """."""
         (self.fget,
          self.fset,
          self.fdel,
          self.fval,
-         self.__doc__) = arguments
+         self.__doc__) = self.validate(*fargs, **fkwargs)
          
 
     #----- Descriptors
@@ -175,12 +161,6 @@ class FProperty(object):
         return fget, fset, fdel, fval, doc
 
     def _validate_from_class(self, klass):
-        
-#         fget = _trygetpure(klass, ['fget', '_get', 'getter'], default=None)
-#         fset = _trygetpure(klass, ['fset', '_set', 'setter'], default=None)
-#         fdel = _trygetpure(klass, ['fdel', '_del', 'deleter'], default=None)
-#         fval = _trygetpure(klass, ['fval', '_val', 'validator'], default=None)
-#         doc  = _trygetpure(klass, ['__doc__'], default=None)
         kdict = vars(klass)
         fget = _get(kdict, 'fget', '_get', 'getter', default=None)
         fset = _get(kdict, 'fset', '_set', 'setter', default=None)
@@ -257,6 +237,3 @@ def _get(mapping, *keys, **kwargs):
         return kwargs['default']
     else:
         raise KeyError('Could not find keys: '+', '.join(keys))
-# def _trygetpure(associations, indexes, default=NotPassed):
-#     getter = lambda assoc, index: object.__getattribute__(assoc, index)
-#     return _trygetter(getter, associations, indexes, default=default)
