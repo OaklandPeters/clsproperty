@@ -2,3 +2,4 @@
     - Add unit-tests for this
         - Has this already been done?
     - Probably a problem with overriding just one of the setter/getter of the property class object. @data.settter ... does it refer to a new class or old class?
+- typedproperty.py: Create, based on notes in 'Property Typecheck Attributes.py': a version of type-checked properties.
